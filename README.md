@@ -9,7 +9,8 @@ To create the connection you must instantiate the TradeZero class and provide th
 ```python
 from tradezero_api import TradeZero
 
-tz = TradeZero('chromedriver.exe', 'username', 'password')tz.login()
+tz = TradeZero('chromedriver.exe', 'username', 'password')
+tz.login()
 ```
 If some time has passed since we've logged in and we want to execute something, we can make sure the connection is still active by calling tz.conn() like so:
 ```python
