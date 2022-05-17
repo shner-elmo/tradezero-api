@@ -17,19 +17,17 @@ os.system('color')
 
 class TradeZero:
     def __init__(self, chrome_driver_path: str, user_name: str, password: str, headless: bool = True,
-                 incognito_mode: bool = False, buying_power: int = 100000):
+                 incognito_mode: bool = False):
         """
         :param chrome_driver_path: path to chromedriver.exe
         :param user_name: TradeZero user_name
         :param password: TradeZero password
         :param headless: True will run the browser in headless mode, which means it won't be visible
         :param incognito_mode: bool, if True: Hide account attributes (acc username, equity, total exposure...)
-        :param buying_power: must provide a value which will be the default equity amount for buying and selling
         """
         self.user_name = user_name
         self.password = password
         self.incognito_mode = incognito_mode
-        self.buying_power = buying_power
 
         s = Service(chrome_driver_path)
         options = webdriver.ChromeOptions()
@@ -179,24 +177,22 @@ class TradeZero:
         lst = []
         for id_ in element_ids:
             val = self.driver.find_element(By.ID, id_).text
-
-            if id_ == 'trading-order-vol':
-                val = (val.replace(',', ''))
+            val = (val.replace(',', ''))  # replace comma for volume and when prices > 999
             lst.append(float(val))
 
         return Data._make(lst)
 
-    def locate_stock(self, symbol: str, total_price: float = 0, buying_power: float = None,
+    def locate_stock(self, symbol: str, max_price: float = 0, buying_power: float = None,
                      share_amount: int = None, debug_info: bool = False):
         """
         Locate shares for a given stock.
 
         Locate a stock, requires: stock symbol, and one of the following: buying_power or share_amount, do not provide
-        both. optional: total_price.
-        if locate_price < total_price: accept, else: decline.
+        both. optional: max_price.
+        if locate_price < max_price: accept, else: decline.
         :param symbol: str, symbol to locate.
-        :param total_price: float, default: 0, total price you are willing to pay for locates
-        (if locate_price less than total_price: accept, else: decline.
+        :param max_price: float, default: 0, total price you are willing to pay for locates
+        (if locate_price less than max_price: accept, else: decline.
         :param buying_power: float, default: 100000, locate (buying_power / share price) and round to the next
          ceiling of 100 multiple.
         :param share_amount: int, default: 0, must be a multiple of 100 (100, 200, 300...)
@@ -258,7 +254,7 @@ class TradeZero:
         else:
             raise Exception(f'Error: not able to locate symbol element ({symbol=})')
 
-        if locate_total <= total_price:
+        if locate_total <= max_price:
             self.driver.find_element(By.XPATH, f'//*[@id="oitem-l-{symbol.upper()}-cell-8"]/span[1]').click()
             if debug_info:
                 print(colored(f'HTB Locate accepted ({symbol}, $ {locate_total})', 'cyan'))

@@ -44,7 +44,7 @@ print(notifications)
 Locate 100 shares of UBER
 ```python
 # total_price is the max amount in USD we're willing to pay for the shares
-tz.locate_stock('uber', total_price=0.10, shares_amount=100)
+tz.locate_stock('uber', max_price=0.10, shares_amount=100)
 ```
 To credit located shares:
 ```python
@@ -54,3 +54,10 @@ Finally, once you're done using the module, before closing it you should close t
 ```python
 tz.exit()
 ```
+<br />
+
+<!-- Task List -->
+## To-do list
+* [ ] Add MarketOrder()
+* [ ] Add StopMarketOrder()
+* [ ] Make a Tutorial video on YT (once stars >= 5)
