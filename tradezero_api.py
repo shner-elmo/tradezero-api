@@ -1,5 +1,4 @@
 import os
-import math
 import time
 import pytz
 from datetime import datetime
@@ -10,6 +9,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import Select
+from selenium.common.exceptions import NoSuchElementException
 from termcolor import colored
 
 os.system('color')
@@ -17,17 +17,17 @@ os.system('color')
 
 class TradeZero:
     def __init__(self, chrome_driver_path: str, user_name: str, password: str, headless: bool = True,
-                 incognito_mode: bool = False):
+                 hide_attributes: bool = False):
         """
         :param chrome_driver_path: path to chromedriver.exe
         :param user_name: TradeZero user_name
         :param password: TradeZero password
         :param headless: True will run the browser in headless mode, which means it won't be visible
-        :param incognito_mode: bool, if True: Hide account attributes (acc username, equity, total exposure...)
+        :param hide_attributes: bool, if True: Hide account attributes (acc username, equity, total exposure...)
         """
         self.user_name = user_name
         self.password = password
-        self.incognito_mode = incognito_mode
+        self.hide_attributes = hide_attributes
 
         s = Service(chrome_driver_path)
         options = webdriver.ChromeOptions()
@@ -72,8 +72,8 @@ class TradeZero:
         password_form.send_keys(self.password, Keys.RETURN)
 
         self._dom_fully_loaded(150)
-        if self.incognito_mode:
-            self._incognito_mode()
+        if self.hide_attributes:
+            self._hide_attributes()
 
         Select(self.driver.find_element(By.ID, "trading-order-select-type")).select_by_index(1)
 
@@ -88,7 +88,7 @@ class TradeZero:
         TradeZero will ask for a Login twice a day, and sometimes it will require the page to be reloaded,
         so this will make sure that its fully loaded, by reloading or doing the login.
         :param log_tz_conn: bool, default: False. if True it will print if it reconnects through the login or refresh.
-        :return: if connected: True, else: False.
+        :return: True or raise Error if not able to reconnect
         """
         if self._dom_fully_loaded(1):
             return True
@@ -100,18 +100,24 @@ class TradeZero:
                 print(colored('tz_conn(): Login worked', 'cyan'))
             return True
 
-        except:
-
+        except NoSuchElementException:
             self.driver.get("https://standard.tradezeroweb.us/")
             if self._dom_fully_loaded(150):
+                if self.hide_attributes:
+                    self._hide_attributes()
                 if log_tz_conn is True:
                     print(colored('tz_conn(): Refresh worked', 'cyan'))
                 return True
 
-        print(colored('tz_conn(): Error! none of the methods worked', 'magenta'))
-        return False
+        raise Exception('@ tz_conn(): Error! not able to reconnect')
 
     def exit(self):
+        """
+        close Selenium window and driver
+
+        :return: bool
+        """
+        self.driver.close()
         self.driver.quit()
         return True
 
@@ -125,7 +131,7 @@ class TradeZero:
         """
         current_symbol = self.driver.find_element(By.ID, 'trading-order-symbol').text.replace('(USD)', '')
         if symbol.upper() == current_symbol:
-            price = self.driver.find_element(By.ID, "trading-order-ask").text.replace('.', '')
+            price = self.driver.find_element(By.ID, "trading-order-ask").text.replace('.', '').replace(',', '')
             if price.isdigit() and float(price) > 0:
                 return True
 
@@ -134,7 +140,7 @@ class TradeZero:
         time.sleep(0.04)
 
         for i in range(300):
-            price = self.driver.find_element(By.ID, "trading-order-ask").text.replace('.', '')
+            price = self.driver.find_element(By.ID, "trading-order-ask").text.replace('.', '').replace(',', '')
             if price == '':
                 time.sleep(0.01)
 
@@ -162,7 +168,7 @@ class TradeZero:
         Data = namedtuple('Data', ['open', 'high', 'low', 'close', 'volume', 'last', 'ask', 'bid'])
 
         if self._load_symbol(symbol) is False:
-            return Data(0.0, 0.0, 0.0, 0.0, 0, 0.0, 0.0, 0.0)
+            return Data(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 
         element_ids = [
             'trading-order-open',
@@ -177,39 +183,34 @@ class TradeZero:
         lst = []
         for id_ in element_ids:
             val = self.driver.find_element(By.ID, id_).text
-            val = (val.replace(',', ''))  # replace comma for volume and when prices > 999
-            lst.append(float(val))
+            val = float(val.replace(',', ''))  # replace comma for volume and when prices > 999
+            lst.append(val)
 
         return Data._make(lst)
 
-    def locate_stock(self, symbol: str, max_price: float = 0, buying_power: float = None,
-                     share_amount: int = None, debug_info: bool = False):
+    def locate_stock(self, symbol: str, share_amount: int, max_price: float = 0, debug_info: bool = False):
         """
         Locate shares for a given stock.
 
-        Locate a stock, requires: stock symbol, and one of the following: buying_power or share_amount, do not provide
+        Locate a stock, requires: stock symbol, share_amount, do not provide
         both. optional: max_price.
         if locate_price < max_price: accept, else: decline.
         :param symbol: str, symbol to locate.
+        :param share_amount: int, must be a multiple of 100 (100, 200, 300...)
         :param max_price: float, default: 0, total price you are willing to pay for locates
         (if locate_price less than max_price: accept, else: decline.
-        :param buying_power: float, default: 100000, locate (buying_power / share price) and round to the next
          ceiling of 100 multiple.
-        :param share_amount: int, default: 0, must be a multiple of 100 (100, 200, 300...)
         :return: dictionary = {'locate_pps': locate_pps, 'locate_total': locate_total} (pps = price per share)
         :param debug_info: bool, if True it will print info about the locates in the console
         """
         Data = namedtuple('Data', ['locate_pps', 'locate_total'])
 
-        if buying_power is not None and share_amount is not None:
-            raise Exception('ERROR: Cannot Provide both buying_power and share_amount parameters, only one')
-
         if share_amount is not None and share_amount % 100 != 0:
             raise Exception(f'ERROR: share_amount is not divisible by 100 ({share_amount=})')
 
         if self._load_symbol(symbol):
-            ask_price = float(self.driver.find_element(By.ID, "trading-order-ask").text)
-        else:  # program supposed to crash, right ?
+            ask_price = float(self.driver.find_element(By.ID, "trading-order-ask").text.replace(',', ''))
+        else:
             return False
 
         if ask_price <= 1.00:
@@ -222,8 +223,7 @@ class TradeZero:
 
         input_shares = self.driver.find_element(By.ID, "short-list-input-shares")
         input_shares.clear()
-        quantity = share_amount or math.ceil(int(buying_power / ask_price) / 100) * 100
-        input_shares.send_keys(quantity)
+        input_shares.send_keys(share_amount)
 
         while self.driver.find_element(By.ID, "short-list-locate-status").text == '':
             time.sleep(0.1)
@@ -243,7 +243,9 @@ class TradeZero:
                 locate_total = float(self.driver.find_element(By.ID, f"oitem-l-{symbol.upper()}-cell-6").text)
                 break
 
-            except:
+            except NoSuchElementException:
+                pass
+            except ValueError:
                 time.sleep(0.15)
                 if i == 15 or i == 299:
                     insufficient_bp = 'Insufficient BP to short a position with requested quantity.'
@@ -291,39 +293,37 @@ class TradeZero:
         self.driver.find_element(By.XPATH, f'//*[@id="inv-{symbol.upper()}-sell"]/button').click()
         return True
 
-    def limit_order(self, order_direction: str, symbol: str, limit_price: float, share_amount: int = None,
-                    buying_power: float = None, log_info: bool = False):
+    def limit_order(self, order_direction: str, symbol: str, share_amount: int, limit_price: float,
+                    time_in_force: str = 'DAY', log_info: bool = False):
         """
         Place a Limit Order
 
-        Places a Limit Order, the following params are required: order_direction, symbol, limit_price, and you must
-        provide one of these two: share_amount or buying_power, not both.
-        if buying_power param provided it will send an order with int(buying_power / share_price)
+        Places a Limit Order, the following params are required: order_direction, symbol, share_amount, and limit_price.
         :param order_direction: str: 'buy', 'sell', 'short', 'cover'
         :param symbol: str: e.g: 'aapl', 'amd', 'NVDA', 'GM'
         :param limit_price: float
         :param share_amount: int
-        :param buying_power: float
+        :param time_in_force: str, default: 'DAY', must be one of the following: 'DAY', 'GTC', or 'GTX'
         :param log_info: bool, if True it will print information about the order
         :return: True if operation succeeded
         """
         timer_start = time.time()
         symbol = symbol.lower()
         order_direction = order_direction.lower()
-
-        if buying_power is not None and share_amount is not None:
-            raise Exception('ERROR: Cannot Provide both buying_power and share_amount parameters, only one')
+        time_in_force = time_in_force.upper()
 
         self._load_symbol(symbol)
 
         order_menu = Select(self.driver.find_element(By.ID, "trading-order-select-type"))
         order_menu.select_by_index(1)
 
-        price = float(self.driver.find_element(By.ID, "trading-order-bid").text)
-        share_quantity = share_amount or int(buying_power / price)
+        tif_menu = Select(self.driver.find_element(By.ID, "trading-order-select-time"))
+        tif_menu.select_by_visible_text(time_in_force)
+
+        price = float(self.driver.find_element(By.ID, "trading-order-bid").text.replace(',', ''))
         input_quantity = self.driver.find_element(By.ID, "trading-order-input-quantity")
         input_quantity.clear()
-        input_quantity.send_keys(share_quantity)
+        input_quantity.send_keys(share_amount)
 
         price_input = self.driver.find_element(By.ID, "trading-order-input-price")
         price_input.clear()
@@ -332,7 +332,7 @@ class TradeZero:
         self.driver.find_element(By.ID, f"trading-order-button-{order_direction}").click()
         if log_info is True:
             print(f"Time: {return_time()}, Time elapsed: {time.time() - timer_start :.2f}, Order direction:",
-                  f"{order_direction}, Symbol: {symbol}, Price: {price}, Shares amount: {share_quantity}")
+                  f"{order_direction}, Symbol: {symbol}, Price: {price}, Shares amount: {share_amount}")
         return True
 
     def market_order(self):
@@ -405,7 +405,7 @@ class TradeZero:
             return True
         return False
 
-    def _incognito_mode(self):
+    def _hide_attributes(self):
         """
         Hides all account attributes i.e, account username, equity-value, cash-value, realized-value...
         :return: bool
@@ -422,7 +422,8 @@ class TradeZero:
             "h-used-lvg-value",
             "p-allowed-lev",
             "h-select-account",
-            "h-loginId"
+            "h-loginId",
+            "trading-order-label-account"
         ]
         for id_ in element_ids:
             element = self.driver.find_element(By.ID, id_)
@@ -436,9 +437,16 @@ class TradeZero:
         fetch_val allows you to fetch a certain attribute from you're account, the attribute must be one of the
         following elements: 'Day Realized', 'Day Unrealized', 'Day Total', 'Buying Power', 'Cash BP', 'Total Exposure',
         'Equity', 'Equity ratio', 'Used LVG', 'Allowed LVG'.
+        note that if _hide_attributes() has been called, the account values are hidden, and therefore they aren't
+        accessible unless you refresh the website.
         :param attribute: str
-        :return: attribute value
+        :return: attribute value or False if attribute hidden
         """
+        element = self.driver.find_element(By.ID, 'h-equity-value')
+        if element.get_attribute('style') == 'display: none;':
+            print(colored('Error: cannot fetch attribute that has been hidden, try refreshing the website', 'magenta'))
+            return False
+
         attributes = {
             'Day Realized': 'h-realized-value',
             'Day Unrealized': 'h-unrealizd-pl-value',
