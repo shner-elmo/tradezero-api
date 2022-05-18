@@ -312,6 +312,9 @@ class TradeZero:
         order_direction = order_direction.lower()
         time_in_force = time_in_force.upper()
 
+        if time_in_force not in ['DAY', 'GTC', 'GTX']:
+            raise AttributeError(f"Error: time_in_force argument must be one of the following: 'DAY', 'GTC', 'GTX'")
+
         self._load_symbol(symbol)
 
         order_menu = Select(self.driver.find_element(By.ID, "trading-order-select-type"))
