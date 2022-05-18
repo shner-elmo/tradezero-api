@@ -29,7 +29,7 @@ For more properties check out the docstring for this method.
 Check if we alredy own a Stock, otherwise: place a Buy Limit order:
 ```python
 if not tz.invested('AAPL'):    
-    tz.limit_order('buy', 'AAPL', aapl.ask + 0.02, 100)
+    tz.limit_order('buy', 'AAPL', 100, aapl.ask + 0.02)
 ```
 Fetch the last three Notifications:
 ```python
@@ -45,7 +45,7 @@ print(notifications)
 Locate 100 shares of UBER
 ```python
 # total_price is the max amount in USD we're willing to pay for the shares
-tz.locate_stock('uber', max_price=0.10, shares_amount=100)
+tz.locate_stock('uber', 100, max_price=0.10)
 ```
 To credit located shares:
 ```python
