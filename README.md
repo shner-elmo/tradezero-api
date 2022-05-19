@@ -100,4 +100,5 @@ two options.
 ## To-do list
 * [x] Add MarketOrder()
 * [x] Add StopMarketOrder()
+* [ ] Add Range order
 * [ ] Make a Tutorial video on YT (once stars >= 5)
