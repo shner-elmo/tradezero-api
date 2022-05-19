@@ -129,8 +129,7 @@ class TradeZero:
         :param symbol: str
         :return: True if symbol data loaded, False if prices == 0.00 (mkt closed), Error if symbol not found
         """
-        current_symbol = self.driver.find_element(By.ID, 'trading-order-symbol').text.replace('(USD)', '')
-        if symbol.upper() == current_symbol:
+        if symbol.upper() == self.current_symbol():
             price = self.driver.find_element(By.ID, "trading-order-ask").text.replace('.', '').replace(',', '')
             if price.isdigit() and float(price) > 0:
                 return True
@@ -155,6 +154,25 @@ class TradeZero:
             message = f'Symbol not found: {symbol.upper()}'
             if message in last_notif:
                 raise Exception(f"ERROR: {symbol=} Not found")
+
+    def current_symbol(self):
+        """get current symbol"""
+        return self.driver.find_element(By.ID, 'trading-order-symbol').text.replace('(USD)', '')
+
+    @property
+    def bid(self):
+        """get bid price"""
+        return float(self.driver.find_element(By.ID, 'trading-order-bid').text.replace(',', ''))
+
+    @property
+    def ask(self):
+        """get ask price"""
+        return float(self.driver.find_element(By.ID, 'trading-order-ask').text.replace(',', ''))
+
+    @property
+    def last(self):
+        """get last price"""
+        return float(self.driver.find_element(By.ID, 'trading-order-p').text.replace(',', ''))
 
     def data(self, symbol: str):
         """
@@ -200,8 +218,7 @@ class TradeZero:
         :return:int or float
         """
         self._load_symbol(symbol)
-        last_price = float(self.driver.find_element(By.ID, 'trading-order-p').text)
-        quantity = (buying_power / last_price)
+        quantity = (buying_power / self.last)
 
         if float_option is True:
             return quantity
@@ -227,13 +244,11 @@ class TradeZero:
         if share_amount is not None and share_amount % 100 != 0:
             raise Exception(f'ERROR: share_amount is not divisible by 100 ({share_amount=})')
 
-        if self._load_symbol(symbol):
-            ask_price = float(self.driver.find_element(By.ID, "trading-order-ask").text.replace(',', ''))
-        else:
+        if not self._load_symbol(symbol):
             return False
 
-        if ask_price <= 1.00:
-            print(f'Error: Cannot locate stocks priced under $1.00 ({symbol=}, price={ask_price})')
+        if self.last <= 1.00:
+            print(f'Error: Cannot locate stocks priced under $1.00 ({symbol=}, price={self.last})')
 
         self.driver.find_element(By.ID, "locate-tab-1").click()
         input_symbol = self.driver.find_element(By.ID, "short-list-input-symbol")
@@ -342,7 +357,6 @@ class TradeZero:
         tif_menu = Select(self.driver.find_element(By.ID, "trading-order-select-time"))
         tif_menu.select_by_visible_text(time_in_force)
 
-        price = float(self.driver.find_element(By.ID, "trading-order-bid").text.replace(',', ''))
         input_quantity = self.driver.find_element(By.ID, "trading-order-input-quantity")
         input_quantity.clear()
         input_quantity.send_keys(share_amount)
@@ -354,14 +368,101 @@ class TradeZero:
         self.driver.find_element(By.ID, f"trading-order-button-{order_direction}").click()
         if log_info is True:
             print(f"Time: {return_time()}, Time elapsed: {time.time() - timer_start :.2f}, Order direction:",
-                  f"{order_direction}, Symbol: {symbol}, Price: {price}, Shares amount: {share_amount}")
+                  f"{order_direction}, Symbol: {symbol}, Limit Price: {limit_price}, Shares amount: {share_amount}")
         return True
 
-    def market_order(self):
-        pass
+    def market_order(self, order_direction: str, symbol: str, share_amount: int,
+                     time_in_force: str = 'DAY', log_info: bool = False):
+        """
+        Place a Market Order
 
-    def stop_market_order(self):
-        pass
+        The following params are required: order_direction, symbol, and share_amount
+        :param order_direction: str: 'buy', 'sell', 'short', 'cover'
+        :param symbol: str: e.g: 'aapl', 'amd', 'NVDA', 'GM'
+        :param share_amount: int
+        :param time_in_force: str, default: 'DAY', must be one of the following: 'DAY', 'GTC', or 'GTX'
+        :param log_info: bool, if True it will print information about the order
+        :return: True if operation succeeded
+        """
+        timer_start = time.time()
+        symbol = symbol.lower()
+        order_direction = order_direction.lower()
+        time_in_force = time_in_force.upper()
+
+        if not time_between('09:30:00', '16:00:00'):
+            raise Exception(f'Error: Market orders are not allowed at this time ({return_time()})')
+
+        if time_in_force not in ['DAY', 'GTC', 'GTX']:
+            raise AttributeError(f"Error: time_in_force argument must be one of the following: 'DAY', 'GTC', 'GTX'")
+
+        self._load_symbol(symbol)
+
+        order_menu = Select(self.driver.find_element(By.ID, "trading-order-select-type"))
+        order_menu.select_by_index(0)
+
+        tif_menu = Select(self.driver.find_element(By.ID, "trading-order-select-time"))
+        tif_menu.select_by_visible_text(time_in_force)
+
+        input_quantity = self.driver.find_element(By.ID, "trading-order-input-quantity")
+        input_quantity.clear()
+        input_quantity.send_keys(share_amount)
+
+        self.driver.find_element(By.ID, f"trading-order-button-{order_direction}").click()
+        if log_info is True:
+            print(f"Time: {return_time()}, Time elapsed: {time.time() - timer_start :.2f}, Order direction:",
+                  f"{order_direction}, Symbol: {symbol}, Price: {self.last}, Shares amount: {share_amount}")
+        return True
+
+    def stop_market_order(self, order_direction: str, symbol: str, share_amount: int, stop_price: float,
+                          time_in_force: str = 'DAY', log_info: bool = False):
+        """
+        Place a Stop Market Order
+
+
+        Places a Stop Market Order, the following params are required: order_direction, symbol,
+        share_amount, and stop_price.
+        note that a Stop Market Order can only be placed during market-hours (09:30:00 - 16:00:00), therefore if a
+        Stop Market Order is placed outside market hours it will raise an error.
+        :param order_direction: str: 'buy', 'sell', 'short', 'cover'
+        :param symbol: str: e.g: 'aapl', 'amd', 'NVDA', 'GM'
+        :param stop_price: float
+        :param share_amount: int
+        :param time_in_force: str, default: 'DAY', must be one of the following: 'DAY', 'GTC', or 'GTX'
+        :param log_info: bool, if True it will print information about the order
+        :return: True if operation succeeded
+        """
+        timer_start = time.time()
+        symbol = symbol.lower()
+        order_direction = order_direction.lower()
+        time_in_force = time_in_force.upper()
+
+        if not time_between('09:30:00', '16:00:00'):
+            raise Exception(f'Error: Stop Market orders are not allowed at this time ({return_time()})')
+
+        if time_in_force not in ['DAY', 'GTC', 'GTX']:
+            raise AttributeError(f"Error: time_in_force argument must be one of the following: 'DAY', 'GTC', 'GTX'")
+
+        self._load_symbol(symbol)
+
+        order_menu = Select(self.driver.find_element(By.ID, "trading-order-select-type"))
+        order_menu.select_by_index(2)
+
+        tif_menu = Select(self.driver.find_element(By.ID, "trading-order-select-time"))
+        tif_menu.select_by_visible_text(time_in_force)
+
+        input_quantity = self.driver.find_element(By.ID, "trading-order-input-quantity")
+        input_quantity.clear()
+        input_quantity.send_keys(share_amount)
+
+        price_input = self.driver.find_element(By.ID, "trading-order-input-sprice")
+        price_input.clear()
+        price_input.send_keys(stop_price)
+
+        self.driver.find_element(By.ID, f"trading-order-button-{order_direction}").click()
+        if log_info is True:
+            print(f"Time: {return_time()}, Time elapsed: {time.time() - timer_start :.2f}, Order direction:",
+                  f"{order_direction}, Symbol: {symbol}, Stop Price: {stop_price}, Shares amount: {share_amount}")
+        return True
 
     def fetch_notif(self, notif_amount: int = 1):
         """
@@ -499,3 +600,14 @@ def return_time():
     datetime_ny = datetime.now(tz_ny)
     time1 = datetime_ny.strftime("%H:%M:%S.%f")[:-3]
     return time1
+
+
+def time_between(time1, time2):
+    if time1 <= return_time() < time2:
+        return True
+    return False
+
+
+# to instantiate the time, pytz, and datetime modules:
+time.time()
+time_between('09:30:00', '16:00:00')
