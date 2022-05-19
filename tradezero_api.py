@@ -188,6 +188,25 @@ class TradeZero:
 
         return Data._make(lst)
 
+    def calculate_order_quantity(self, symbol: str, buying_power: float, float_option: bool = False):
+        """
+        return int(share_price / buying_power)
+
+        returns the amount of shares you can buy with the given buying_power as int(), but if float_option is True,
+        it will return the amount as a float.
+        :param symbol: str
+        :param buying_power: float,
+        :param float_option: bool, default: False, if True returns the original number as float
+        :return:int or float
+        """
+        self._load_symbol(symbol)
+        last_price = float(self.driver.find_element(By.ID, 'trading-order-p').text)
+        quantity = (buying_power / last_price)
+
+        if float_option is True:
+            return quantity
+        return int(quantity)
+
     def locate_stock(self, symbol: str, share_amount: int, max_price: float = 0, debug_info: bool = False):
         """
         Locate shares for a given stock.
