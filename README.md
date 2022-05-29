@@ -32,7 +32,7 @@ tz.market_order('short', 'AAPL', 200)
 ```
 Check if we alredy own a Stock, otherwise: place a Buy Limit order:
 ```python
-if not tz.invested('AMD'):  
+if not tz.invested('AMD'):
     limit_price = tz.data('AMD').ask + 0.02
     tz.limit_order('buy', 'AMD', 100, limit_price)
 ```
@@ -100,4 +100,5 @@ two options.
 ## To-do list
 * [x] Add MarketOrder()
 * [x] Add StopMarketOrder()
+* [ ] Add Range order
 * [ ] Make a Tutorial video on YT (once stars >= 5)
