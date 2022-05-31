@@ -9,7 +9,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import Select
-from selenium.common.exceptions import NoSuchElementException, WebDriverException
+from selenium.common.exceptions import NoSuchElementException, WebDriverException, StaleElementReferenceException
 from termcolor import colored
 import warnings
 os.system('color')
@@ -301,7 +301,7 @@ class TradeZero:
                 locate_total = float(self.driver.find_element(By.ID, f"oitem-l-{symbol.upper()}-cell-6").text)
                 break
 
-            except NoSuchElementException:
+            except (ValueError, NoSuchElementException, StaleElementReferenceException):
                 time.sleep(0.15)
                 if i == 15 or i == 299:
                     insufficient_bp = 'Insufficient BP to short a position with requested quantity.'
