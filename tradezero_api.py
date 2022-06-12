@@ -1,7 +1,7 @@
 import os
 import time
 import pytz
-from datetime import datetime
+import datetime as dt
 import pandas as pd
 from collections import namedtuple
 from selenium import webdriver
@@ -42,7 +42,7 @@ class TradeZero:
 
         # to instantiate the time, pytz, and datetime modules:
         time.time()
-        self.time_between(self.time, self.time)
+        self.time_between(time1=(9, 30), time2=(10, 30))
 
     def _dom_fully_loaded(self, iter_amount: int = 1):
         """
@@ -130,21 +130,20 @@ class TradeZero:
 
     @property
     def time(self):
-        """return current EST time in str, ex: '12:04:31.217'"""
+        """ return current EST time as a datetime object """
         tz_ny = pytz.timezone('US/Eastern')
-        datetime_ny = datetime.now(tz_ny)
-        time1 = datetime_ny.strftime("%H:%M:%S.%f")[:-3]
+        time1 = dt.datetime.now(tz=tz_ny).time()
         return time1
 
-    def time_between(self, time1: str, time2: str):
+    def time_between(self, time1: tuple, time2: tuple):
         """
         return True if current time between: time1, and time2, else: return False
 
-        :param time1: str
-        :param time2: str
+        :param time1: tuple, ex: (10, 30), or with sec and micro-sec: (10, 30, 0, 250000)
+        :param time2: tuple, ex: (12, 45)
         :return: bool
         """
-        if time1 <= self.time < time2:
+        if dt.time(*time1) < self.time < dt.time(*time2):
             return True
         return False
 
@@ -417,7 +416,7 @@ class TradeZero:
         order_direction = order_direction.lower()
         time_in_force = time_in_force.upper()
 
-        if not self.time_between('09:30:00', '16:00:00'):
+        if not self.time_between((9, 30), (16, 0)):
             raise Exception(f'Error: Market orders are not allowed at this time ({self.time})')
 
         if time_in_force not in ['DAY', 'GTC', 'GTX']:
@@ -464,7 +463,7 @@ class TradeZero:
         order_direction = order_direction.lower()
         time_in_force = time_in_force.upper()
 
-        if not self.time_between('09:30:00', '16:00:00'):
+        if not self.time_between((9, 30), (16, 0)):
             raise Exception(f'Error: Stop Market orders are not allowed at this time ({self.time})')
 
         if time_in_force not in ['DAY', 'GTC', 'GTX']:
