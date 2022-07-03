@@ -1,9 +1,3 @@
-import os
-import time
-import pytz
-import datetime as dt
-import pandas as pd
-from collections import namedtuple
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -11,11 +5,19 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import Select
 from selenium.common.exceptions import NoSuchElementException, WebDriverException, StaleElementReferenceException
 from termcolor import colored
+import pandas as pd
+
+import time
+import os
 import warnings
+from collections import namedtuple
+
+from helpers import Time, Timer
+
 os.system('color')
 
 
-class TradeZero:
+class TradeZero(Time, Timer):
     def __init__(self, chrome_driver_path: str, user_name: str, password: str, headless: bool = True,
                  hide_attributes: bool = False):
         """
@@ -25,6 +27,7 @@ class TradeZero:
         :param headless: True will run the browser in headless mode, which means it won't be visible
         :param hide_attributes: bool, if True: Hide account attributes (acc username, equity, total exposure...)
         """
+        super().__init__()
         self.user_name = user_name
         self.password = password
         self.hide_attributes = hide_attributes
@@ -127,25 +130,6 @@ class TradeZero:
             pass
 
         self.driver.quit()
-
-    @property
-    def time(self):
-        """ return current EST time as a datetime object """
-        tz_ny = pytz.timezone('US/Eastern')
-        time1 = dt.datetime.now(tz=tz_ny).time()
-        return time1
-
-    def time_between(self, time1: tuple, time2: tuple):
-        """
-        return True if current time between: time1, and time2, else: return False
-
-        :param time1: tuple, ex: (10, 30), or with sec and micro-sec: (10, 30, 0, 250000)
-        :param time2: tuple, ex: (12, 45)
-        :return: bool
-        """
-        if dt.time(*time1) < self.time < dt.time(*time2):
-            return True
-        return False
 
     def load_symbol(self, symbol: str):
         """
