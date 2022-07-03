@@ -12,12 +12,13 @@ import os
 import warnings
 from collections import namedtuple
 
-from helpers import Time, Timer
+from time_helpers import Time, Timer, time_it
+from watchlist import Watchlist
 
 os.system('color')
 
 
-class TradeZero(Time, Timer):
+class TradeZero(Time):
     def __init__(self, chrome_driver_path: str, user_name: str, password: str, headless: bool = True,
                  hide_attributes: bool = False):
         """
@@ -44,7 +45,7 @@ class TradeZero(Time, Timer):
         self.Watchlist = Watchlist(self.driver)
 
         # to instantiate the time, pytz, and datetime modules:
-        time.time()
+        Timer()
         self.time_between(time1=(9, 30), time2=(10, 30))
 
     def _dom_fully_loaded(self, iter_amount: int = 1):
@@ -64,14 +65,13 @@ class TradeZero(Time, Timer):
             time.sleep(0.5)
         return False
 
+    @time_it
     def login(self, log_time_elapsed: bool = False):
         """
         log-in TradeZero's website
 
         :param log_time_elapsed: bool, if True it will print time elapsed for login
         """
-        timer_start1 = time.time()
-
         login_form = self.driver.find_element(By.ID, "login")
         login_form.send_keys(self.user_name)
 
@@ -83,9 +83,6 @@ class TradeZero(Time, Timer):
             self._hide_attributes()
 
         Select(self.driver.find_element(By.ID, "trading-order-select-type")).select_by_index(1)
-
-        if log_time_elapsed is True:
-            print(f'Time elapsed (log in): {time.time() - timer_start1 :.2f}')
 
     def conn(self, log_tz_conn: bool = False):
         """
@@ -337,6 +334,7 @@ class TradeZero(Time, Timer):
         self.driver.find_element(By.XPATH, f'//*[@id="inv-{symbol.upper()}-sell"]/button').click()
         return
 
+    @time_it
     def limit_order(self, order_direction: str, symbol: str, share_amount: int, limit_price: float,
                     time_in_force: str = 'DAY', log_info: bool = False):
         """
@@ -351,7 +349,6 @@ class TradeZero(Time, Timer):
         :return: True if operation succeeded
         :raises AttributeError: if time_in_force argument not one of the following: 'DAY', 'GTC', 'GTX'
         """
-        timer_start = time.time()
         symbol = symbol.lower()
         order_direction = order_direction.lower()
         time_in_force = time_in_force.upper()
@@ -376,11 +373,12 @@ class TradeZero(Time, Timer):
         price_input.send_keys(limit_price)
 
         self.driver.find_element(By.ID, f"trading-order-button-{order_direction}").click()
-        if log_info is True:
-            print(f"Time: {self.time}, Time elapsed: {time.time() - timer_start :.2f}, Order direction:",
-                  f"{order_direction}, Symbol: {symbol}, Limit Price: {limit_price}, Shares amount: {share_amount}")
-        return
 
+        if log_info is True:
+            print(f"Time: {self.time}, Order direction: {order_direction}, Symbol: {symbol}, "
+                  f"Limit Price: {limit_price}, Shares amount: {share_amount}")
+
+    @time_it
     def market_order(self, order_direction: str, symbol: str, share_amount: int,
                      time_in_force: str = 'DAY', log_info: bool = False):
         """
@@ -395,7 +393,6 @@ class TradeZero(Time, Timer):
         :raises Exception: if time not during market hours (9:30 - 16:00)
         :raises AttributeError: if time_in_force argument not one of the following: 'DAY', 'GTC', 'GTX'
         """
-        timer_start = time.time()
         symbol = symbol.lower()
         order_direction = order_direction.lower()
         time_in_force = time_in_force.upper()
@@ -419,11 +416,12 @@ class TradeZero(Time, Timer):
         input_quantity.send_keys(share_amount)
 
         self.driver.find_element(By.ID, f"trading-order-button-{order_direction}").click()
-        if log_info is True:
-            print(f"Time: {self.time}, Time elapsed: {time.time() - timer_start :.2f}, Order direction:",
-                  f"{order_direction}, Symbol: {symbol}, Price: {self.last}, Shares amount: {share_amount}")
-        return
 
+        if log_info is True:
+            print(f"Time: {self.time}, Order direction: {order_direction}, Symbol: {symbol}, "
+                  f"Price: {self.last}, Shares amount: {share_amount}")
+
+    @time_it
     def stop_market_order(self, order_direction: str, symbol: str, share_amount: int, stop_price: float,
                           time_in_force: str = 'DAY', log_info: bool = False):
         """
@@ -442,7 +440,6 @@ class TradeZero(Time, Timer):
         :raises Exception: if time not during market hours (9:30 - 16:00)
         :raises AttributeError: if time_in_force argument not one of the following: 'DAY', 'GTC', 'GTX'
         """
-        timer_start = time.time()
         symbol = symbol.lower()
         order_direction = order_direction.lower()
         time_in_force = time_in_force.upper()
@@ -470,9 +467,10 @@ class TradeZero(Time, Timer):
         price_input.send_keys(stop_price)
 
         self.driver.find_element(By.ID, f"trading-order-button-{order_direction}").click()
+
         if log_info is True:
-            print(f"Time: {self.time}, Time elapsed: {time.time() - timer_start :.2f}, Order direction:",
-                  f"{order_direction}, Symbol: {symbol}, Stop Price: {stop_price}, Shares amount: {share_amount}")
+            print(f"Time: {self.time}, Order direction: {order_direction}, Symbol: {symbol}, "
+                  f"Stop Price: {stop_price}, Shares amount: {share_amount}")
 
     def fetch_last_notif_message(self):
         """
@@ -620,124 +618,3 @@ class TradeZero(Time, Timer):
             value = value.replace(char, '')
 
         return float(value)
-
-
-class Watchlist:
-    """
-    this class is for managing the data withing the watchlist container
-    note that if the container is placed on the left side of the UI it will show
-    only about half of the properties (Last, Bid, Ask, %Chg, Chg, Vol) instead of all 12.
-    """
-    def __init__(self, driver):
-        self.driver = driver
-        self.symbols = set()
-
-    def add(self, symbol: str):
-        """
-        add symbol to watchlist
-
-        :param symbol:
-        :raises Exception: if given symbol is not valid
-        """
-        symbol = symbol.upper()
-        symbol_input = self.driver.find_element(By.ID, 'trading-l1-input-symbol')
-        symbol_input.send_keys(symbol, Keys.RETURN)
-
-        time.sleep(0.4)
-        if self._symbol_valid(symbol):
-            self.symbols.add(symbol)
-        else:
-            raise Exception(f'Error: Given symbol is not valid ({symbol})')
-
-    def remove(self, symbol: str):
-        """
-        remove symbol from watchlist
-
-        :param symbol:
-        """
-        symbol = symbol.upper()
-        if symbol not in self._get_current_symbols():
-            warnings.warn(f'Given Symbol is not present in watchlist ({symbol})')
-            return
-
-        delete_button = f'//*[@id="wl-{symbol}"]/td[1]'
-        self.driver.find_element(By.XPATH, delete_button).click()
-        self.symbols.remove(symbol)
-
-    def reset(self):
-        """
-        remove all symbols from watchlist
-        """
-        rows = self.driver.find_elements(By.XPATH, '//*[@id="trading-l1-tbody"]/tr/td[1]')
-        for delete_button in rows:
-            delete_button.click()
-        self.symbols = set()
-
-    def restore(self):
-        """
-        make sure all symbols that have been added,
-        are present in the watchlist (after refresh the watchlist resets)
-        """
-        current_list = set(self._get_current_symbols())  # set because the order might be different
-        if self.symbols != current_list:
-            for symbol in self.symbols:
-                if symbol not in current_list:
-                    self.add(symbol)
-
-    def _get_current_symbols(self):
-        """
-        return list with current symbols on watchlist
-        """
-        rows = self.driver.find_elements(By.XPATH, '//*[@id="trading-l1-tbody"]/tr/td[2]')
-        if len(rows) == 0:
-            return []
-
-        data = self.data('dict')
-        return list(data.keys())
-
-    def _symbol_valid(self, symbol: str):
-        """
-        check if a symbol is valid
-
-        :param symbol:
-        :return: bool
-        """
-        last_notif_message = self.driver.find_element(By.CSS_SELECTOR, 'span.message').text
-        if last_notif_message == f'Symbol not found: {symbol.upper()}':
-            return False
-        return True
-
-    def data(self, return_type: str = 'df'):
-        """
-        returns the watchlist table as either a DataFrame or Dict,
-        if return_type is equal to: 'df' it will return a pandas.DataFrame
-        or if return_type equal to: 'dict' it will return a Dictionary with the symbols as keys
-        and the data as values.
-        note that if there are no symbols in the watchlist, Pandas will not be able
-        to locate the table and therefore will return False
-
-        :param return_type: 'df' or 'dict'
-        :return: None if empty, else: DF or dict
-        """
-        symbols_lst = self.driver.find_elements(By.XPATH, '//*[@id="trading-l1-tbody"]//td[2]')
-        if len(symbols_lst) == 0:
-            warnings.warn('There are no symbols present in your watchlist')
-            return None
-
-        # selenium can only read visible rows, while pandas can find also non-visible text
-        # if there are no rows pandas will not be able to locate the table, and throw an error
-        df = pd.read_html(self.driver.page_source, attrs={'id': 'trading-l1-table'})[0]
-
-        if len(df.columns) == 8:
-            df = df.drop(columns=[0])  # drop 'x'
-            df.columns = ['symbol', 'last', 'bid', 'ask', '%chg', 'chg', 'vol']
-
-        elif len(df.columns) == 14:
-            df = df.drop(columns=[0, 2])  # drop 'x' and currency_get_current_symbols
-            df.columns = ['symbol', 'open', 'close', 'last', 'bid', 'ask',
-                          'high', 'low', '%chg', 'chg', 'vol', 'time']
-
-        df = df.set_index('symbol')
-        if return_type == 'dict':
-            return df.to_dict('index')
-        return df
