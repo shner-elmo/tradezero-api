@@ -14,7 +14,7 @@ from collections import namedtuple
 from time_helpers import Time, Timer, time_it
 from watchlist import Watchlist
 from portfolio import Portfolio
-
+from enums import Order, TIF
 os.system('color')
 
 
@@ -336,8 +336,8 @@ class TradeZero(Time):
         return
 
     @time_it
-    def limit_order(self, order_direction: str, symbol: str, share_amount: int, limit_price: float,
-                    time_in_force: str = 'DAY', log_info: bool = False):
+    def limit_order(self, order_direction: Order, symbol: str, share_amount: int, limit_price: float,
+                    time_in_force: TIF = TIF.DAY, log_info: bool = False):
         """
         Place a Limit Order, the following params are required: order_direction, symbol, share_amount, and limit_price.
 
@@ -351,8 +351,8 @@ class TradeZero(Time):
         :raises AttributeError: if time_in_force argument not one of the following: 'DAY', 'GTC', 'GTX'
         """
         symbol = symbol.lower()
-        order_direction = order_direction.lower()
-        time_in_force = time_in_force.upper()
+        order_direction = order_direction.value
+        time_in_force = time_in_force.value
 
         if time_in_force not in ['DAY', 'GTC', 'GTX']:
             raise AttributeError(f"Error: time_in_force argument must be one of the following: 'DAY', 'GTC', 'GTX'")
@@ -380,8 +380,8 @@ class TradeZero(Time):
                   f"Limit Price: {limit_price}, Shares amount: {share_amount}")
 
     @time_it
-    def market_order(self, order_direction: str, symbol: str, share_amount: int,
-                     time_in_force: str = 'DAY', log_info: bool = False):
+    def market_order(self, order_direction: Order, symbol: str, share_amount: int,
+                     time_in_force: TIF = TIF.DAY, log_info: bool = False):
         """
         Place a Market Order, The following params are required: order_direction, symbol, and share_amount
 
@@ -395,8 +395,8 @@ class TradeZero(Time):
         :raises AttributeError: if time_in_force argument not one of the following: 'DAY', 'GTC', 'GTX'
         """
         symbol = symbol.lower()
-        order_direction = order_direction.lower()
-        time_in_force = time_in_force.upper()
+        order_direction = order_direction.value
+        time_in_force = time_in_force.value
 
         if not self.time_between((9, 30), (16, 0)):
             raise Exception(f'Error: Market orders are not allowed at this time ({self.time})')
@@ -423,8 +423,8 @@ class TradeZero(Time):
                   f"Price: {self.last}, Shares amount: {share_amount}")
 
     @time_it
-    def stop_market_order(self, order_direction: str, symbol: str, share_amount: int, stop_price: float,
-                          time_in_force: str = 'DAY', log_info: bool = False):
+    def stop_market_order(self, order_direction: Order, symbol: str, share_amount: int, stop_price: float,
+                          time_in_force: TIF = TIF.DAY, log_info: bool = False):
         """
         Place a Stop Market Order, the following params are required: order_direction, symbol,
         share_amount, and stop_price.
@@ -442,8 +442,8 @@ class TradeZero(Time):
         :raises AttributeError: if time_in_force argument not one of the following: 'DAY', 'GTC', 'GTX'
         """
         symbol = symbol.lower()
-        order_direction = order_direction.lower()
-        time_in_force = time_in_force.upper()
+        order_direction = order_direction.value
+        time_in_force = time_in_force.value
 
         if not self.time_between((9, 30), (16, 0)):
             raise Exception(f'Error: Stop Market orders are not allowed at this time ({self.time})')
