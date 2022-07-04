@@ -15,6 +15,7 @@ from .time_helpers import Time, Timer, time_it
 from .watchlist import Watchlist
 from .portfolio import Portfolio
 from .notification import Notification
+from .account import Account
 from .enums import Order, TIF
 
 os.system('color')
@@ -47,6 +48,7 @@ class TradeZero(Time):
         self.Watchlist = Watchlist(self.driver)
         self.Portfolio = Portfolio(self.driver)
         self.Notification = Notification(self.driver)
+        self.Account = Account(self.driver)
 
         # to instantiate the time, pytz, and datetime modules:
         Timer()
@@ -84,7 +86,7 @@ class TradeZero(Time):
 
         self._dom_fully_loaded(150)
         if self.hide_attributes:
-            self._hide_attributes()
+            self.Account.hide_attributes()
 
         Select(self.driver.find_element(By.ID, "trading-order-select-type")).select_by_index(1)
 
@@ -106,6 +108,7 @@ class TradeZero(Time):
             self.login()
 
             self.Watchlist.restore()
+
             if log_tz_conn is True:
                 print(colored('tz_conn(): Login worked', 'cyan'))
             return True
@@ -115,8 +118,10 @@ class TradeZero(Time):
             if self._dom_fully_loaded(150):
 
                 if self.hide_attributes:
-                    self._hide_attributes()
+                    self.Account.hide_attributes()
+
                 self.Watchlist.restore()
+
                 if log_tz_conn is True:
                     print(colored('tz_conn(): Refresh worked', 'cyan'))
                 return True
@@ -289,7 +294,7 @@ class TradeZero(Time):
                 time.sleep(0.15)
                 if i == 15 or i == 299:
                     insufficient_bp = 'Insufficient BP to short a position with requested quantity.'
-                    last_notif = self.fetch_last_notif_message()
+                    last_notif = self.Notification.get_last_notification_message()
                     if insufficient_bp in last_notif:
                         warnings.warn(f"ERROR! {insufficient_bp}")
                         return
@@ -475,67 +480,3 @@ class TradeZero(Time):
         if log_info is True:
             print(f"Time: {self.time}, Order direction: {order_direction}, Symbol: {symbol}, "
                   f"Stop Price: {stop_price}, Shares amount: {share_amount}")
-
-    def _hide_attributes(self):
-        """
-        Hides all account attributes i.e, account username, equity-value, cash-value, realized-value...
-        """
-        element_ids = [
-            "h-realized-value",
-            "h-unrealizd-pl-value",
-            "h-total-pl-value",
-            "p-bp",
-            "h-cash-value",
-            "h-exposure-value",
-            "h-equity-value",
-            "h-equity-ratio-value",
-            "h-used-lvg-value",
-            "p-allowed-lev",
-            "h-select-account",
-            "h-loginId",
-            "trading-order-label-account"
-        ]
-        for id_ in element_ids:
-            element = self.driver.find_element(By.ID, id_)
-            self.driver.execute_script("arguments[0].setAttribute('style', 'display: none;')", element)
-
-    def fetch_attribute(self, attribute: str):
-        """
-        fetch_attribute allows you to fetch a certain attribute from you're account, the attribute must be one of the
-        following elements: 'Day Realized', 'Day Unrealized', 'Day Total', 'Buying Power', 'Cash BP', 'Total Exposure',
-        'Equity', 'Equity ratio', 'Used LVG', 'Allowed LVG'.
-        note that if _hide_attributes() has been called, the account values are hidden, and therefore aren't
-        accessible.
-
-        :param attribute: str
-        :return: attribute value or None if attribute hidden
-        :raises KeyError: if given attribute is not valid
-        """
-        attributes = {
-            'Day Realized': 'h-realized-value',
-            'Day Unrealized': 'h-unrealizd-pl-value',
-            'Day Total': 'h-total-pl-value',
-            'Buying Power': 'p-bp',
-            'Cash BP': 'h-cash-value',
-            'Total Exposure': 'h-exposure-value',
-            'Equity': 'h-equity-value',
-            'Equity ratio': 'h-equity-ratio-value',
-            'Used LVG': 'h-used-lvg-value',
-            'Allowed LVG': 'p-allowed-lev'
-        }
-
-        if attribute not in attributes.keys():
-            raise KeyError('ERROR! given attribute is not valid')
-
-        element = self.driver.find_element(By.ID, attributes[attribute])
-        if element.get_attribute('style') == 'display: none;':
-            warnings.warn('cannot fetch attribute that has been hidden')
-            return None
-
-        value = self.driver.find_element(By.ID, attributes[attribute]).text
-
-        chars = ['$', '%', 'x', ',']
-        for char in chars:
-            value = value.replace(char, '')
-
-        return float(value)
