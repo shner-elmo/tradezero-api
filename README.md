@@ -8,6 +8,7 @@ To create the connection you must instantiate the TradeZero class and provide th
 
 ```python
 from tradezero_api import TradeZero
+from tradezero_api.enums import Order
 
 tz = TradeZero('chromedriver.exe', 'username', 'password')
 tz.login()
@@ -28,13 +29,13 @@ For more properties check out the docstring for this method.
 
 Place a Market Order:
 ```python
-tz.market_order('short', 'AAPL', 200)  
+tz.market_order(Order.SHORT, 'AAPL', 200)  
 ```
 Check if we alredy own a Stock, otherwise: place a Buy Limit order:
 ```python
 if not tz.Portfolio.invested('AMD'):
     limit_price = tz.data('AMD').ask + 0.02
-    tz.limit_order('buy', 'AMD', 100, limit_price)
+    tz.limit_order(Order.BUY, 'AMD', 100, limit_price)
 ```
 Get last three Notifications:
 ```python
