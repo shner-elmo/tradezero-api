@@ -14,6 +14,7 @@ from collections import namedtuple
 from .time_helpers import Time, Timer, time_it
 from .watchlist import Watchlist
 from .portfolio import Portfolio
+from .notification import Notification
 from .enums import Order, TIF
 
 os.system('color')
@@ -45,6 +46,7 @@ class TradeZero(Time):
 
         self.Watchlist = Watchlist(self.driver)
         self.Portfolio = Portfolio(self.driver)
+        self.Notification = Notification(self.driver)
 
         # to instantiate the time, pytz, and datetime modules:
         Timer()
@@ -160,7 +162,7 @@ class TradeZero(Time):
                 return True
 
             elif i == 15 or i == 299:
-                last_notif = self.fetch_last_notif_message()
+                last_notif = self.Notification.get_last_notification_message()
                 message = f'Symbol not found: {symbol.upper()}'
                 if message == last_notif:
                     raise Exception(f"ERROR: {symbol=} Not found")

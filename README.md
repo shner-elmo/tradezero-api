@@ -32,13 +32,13 @@ tz.market_order('short', 'AAPL', 200)
 ```
 Check if we alredy own a Stock, otherwise: place a Buy Limit order:
 ```python
-if not tz.invested('AMD'):
+if not tz.Portfolio.invested('AMD'):
     limit_price = tz.data('AMD').ask + 0.02
     tz.limit_order('buy', 'AMD', 100, limit_price)
 ```
-Fetch the last three Notifications:
+Get last three Notifications:
 ```python
-notifications = tz.fetch_notif(3)
+notifications = tz.Notification.get_notifications(3)
 print(notifications)
 # returns a nested list with time, title, and message
 ```
@@ -95,10 +95,3 @@ But if we are not sure whats the current symbol, then use: ```tz.data(stock).bid
 Although we can still use tz.bid in combination with tz.current_symbol() like the example above,  
 but if the symbol isnt what we expect than it will do nothing, so better to stick with those
 two options.
-
-<!-- Task List -->
-## To-do list
-* [x] Add MarketOrder()
-* [x] Add StopMarketOrder()
-* [ ] Add Range order
-* [ ] Make a Tutorial video on YT (once stars >= 5)
