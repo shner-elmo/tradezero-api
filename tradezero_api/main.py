@@ -21,13 +21,13 @@ os.system('color')
 
 
 class TradeZero(Time):
-    def __init__(self, chrome_driver_path: str, user_name: str, password: str, headless: bool = True,
+    def __init__(self, chrome_driver_path: str, user_name: str, password: str, headless: bool = False,
                  hide_attributes: bool = False):
         """
         :param chrome_driver_path: path to chromedriver.exe
         :param user_name: TradeZero user_name
         :param password: TradeZero password
-        :param headless: True will run the browser in headless mode, which means it won't be visible
+        :param headless: default: False, True will run the browser in headless mode, which means it won't be visible
         :param hide_attributes: bool, if True: Hide account attributes (acc username, equity, total exposure...)
         """
         super().__init__()
