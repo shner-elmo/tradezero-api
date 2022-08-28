@@ -32,7 +32,7 @@ class Notification(Time):
         """
         notif_lst = self.driver.find_elements(By.XPATH,
                                               '//*[@id="notifications-list-1"]/li')
-        notif_lst_text = [x.text.split('\n') for x in notif_lst if x.text != '']
+        notif_lst_text = [x.text.split('\n') for x in notif_lst[0:notif_amout] if x.text != '']
 
         notifications = []
         for (notification, i) in zip(notif_lst_text, range(notif_amount)):
@@ -44,3 +44,27 @@ class Notification(Time):
 
             notifications.append(notification)
         return notifications
+    
+    def notifications_generator(self):
+        """
+        A notification generator, similarly to get_notifications(), this yields one notification at a time,
+        on each next() it will yield a list like so: 
+        ['11:34:49', 'Order canceled', 'Your Limit Buy order of 1 AMD was canceled.']
+        You can think of it as a more dynamic version of get_notifications(), on each next(); it gets 
+        one notification message.
+
+        :return: list
+        """
+        notif_lst = self.driver.find_elements(By.XPATH, '//*[@id="notifications-list-1"]/li')
+        for item in notif_lst:
+            if item.text == '':
+                continue
+                
+            notification = item.text.split('\n')
+            if len(notification) == 2:
+                notification.insert(0, str(self.time))
+
+            elif notification[0] == '' or notification[0] == '-':
+                notification[0] = str(self.time)
+
+            yield notification
