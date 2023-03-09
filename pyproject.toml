@@ -6,6 +6,19 @@ authors = ["shner-elmo <770elmo@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 packages = [{include = "tradezero_api"}]
+repository = "https://github.com/shner-elmo/db-wrapper"
+documentation = "https://github.com/shner-elmo/tradezero-api/blob/master/README.md"
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+]
+
+[tool.poetry.urls]
+issues = "https://github.com/shner-elmo/tradezero-api/issues"
 
 [tool.poetry.dependencies]
 python = "^3.10"
