@@ -1,4 +1,4 @@
-# TradeZero_API
+# tradezero-api
 
 ### Non-official TradeZero API
 <br />
@@ -8,9 +8,8 @@ To create the connection you must instantiate the TradeZero class and provide th
 
 ```python
 from tradezero_api import TradeZero
-from tradezero_api.enums import Order
 
-tz = TradeZero('chromedriver.exe', 'username', 'password')
+tz = TradeZero(user_name='username', password='password')
 tz.login()
 ```
 If some time has passed since we've logged in and we want to execute something, we can make sure the connection is still active by calling tz.conn() like so:
@@ -29,6 +28,8 @@ For more properties check out the docstring for this method.
 
 Place a Market Order:
 ```python
+from tradezero_api import Order
+
 tz.market_order(Order.SHORT, 'AAPL', 200)  
 ```
 Check if we alredy own a Stock, otherwise: place a Buy Limit order:
