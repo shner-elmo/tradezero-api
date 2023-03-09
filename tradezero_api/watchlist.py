@@ -1,9 +1,11 @@
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-import pandas as pd
+from __future__ import annotations
 
 import time
 import warnings
+
+import pandas as pd
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 
 
 class Watchlist:

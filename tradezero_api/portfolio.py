@@ -1,6 +1,9 @@
-from selenium.webdriver.common.by import By
-import pandas as pd
+from __future__ import annotations
+
 import warnings
+
+import pandas as pd
+from selenium.webdriver.common.by import By
 
 
 class Portfolio:

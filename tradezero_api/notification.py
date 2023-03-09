@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from selenium.webdriver.common.by import By
 
 from .time_helpers import Time
@@ -32,7 +34,7 @@ class Notification(Time):
         """
         notif_lst = self.driver.find_elements(By.XPATH,
                                               '//*[@id="notifications-list-1"]/li')
-        notif_lst_text = [x.text.split('\n') for x in notif_lst[0:notif_amout] if x.text != '']
+        notif_lst_text = [x.text.split('\n') for x in notif_lst[0:notif_amount] if x.text != '']
 
         notifications = []
         for (notification, i) in zip(notif_lst_text, range(notif_amount)):

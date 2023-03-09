@@ -1,21 +1,9 @@
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import Select
-from selenium.common.exceptions import NoSuchElementException, WebDriverException, StaleElementReferenceException
-from termcolor import colored
+from __future__ import annotations
 
-import time
-import os
 import warnings
 from collections import namedtuple
 
-from .time_helpers import Time, Timer, time_it
-from .watchlist import Watchlist
-from .portfolio import Portfolio
-from .notification import Notification
-from .enums import Order, TIF
+from selenium.webdriver.common.by import By
 
 
 class Account:
@@ -34,7 +22,7 @@ class Account:
             "p-allowed-lev",
             "h-select-account",
             "h-loginId",
-            "trading-order-label-account"
+            "trading-order-label-account",
         ]
 
     def hide_attributes(self):

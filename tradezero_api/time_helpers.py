@@ -1,6 +1,9 @@
-import pytz
-import datetime as dt
+from __future__ import annotations
+
 import time
+import datetime as dt
+
+import pytz
 
 
 class Time:

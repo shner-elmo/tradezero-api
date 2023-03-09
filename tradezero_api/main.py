@@ -1,15 +1,18 @@
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import Select
-from selenium.common.exceptions import NoSuchElementException, WebDriverException, StaleElementReferenceException
-from termcolor import colored
+from __future__ import annotations
 
 import time
 import os
 import warnings
 from collections import namedtuple
+
+from selenium.webdriver.chrome.service import Service as ChromeService
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import Select
+from selenium.common.exceptions import NoSuchElementException, WebDriverException, StaleElementReferenceException
+from termcolor import colored
 
 from .time_helpers import Time, Timer, time_it
 from .watchlist import Watchlist
@@ -20,12 +23,13 @@ from .enums import Order, TIF
 
 os.system('color')
 
+TZ_HOME_URL = 'https://standard.tradezeroweb.us/'
+
 
 class TradeZero(Time):
-    def __init__(self, chrome_driver_path: str, user_name: str, password: str, headless: bool = False,
+    def __init__(self, user_name: str, password: str, headless: bool = False,
                  hide_attributes: bool = False):
         """
-        :param chrome_driver_path: path to chromedriver.exe
         :param user_name: TradeZero user_name
         :param password: TradeZero password
         :param headless: default: False, True will run the browser in headless mode, which means it won't be visible
@@ -36,14 +40,14 @@ class TradeZero(Time):
         self.password = password
         self.hide_attributes = hide_attributes
 
-        s = Service(chrome_driver_path)
+        service = ChromeService(ChromeDriverManager().install())
         options = webdriver.ChromeOptions()
         options.add_experimental_option('excludeSwitches', ['enable-logging'])
         if headless is True:
             options.headless = headless
 
-        self.driver = webdriver.Chrome(service=s, options=options)
-        self.driver.get("https://standard.tradezeroweb.us/")
+        self.driver = webdriver.Chrome(service=service, options=options)
+        self.driver.get(TZ_HOME_URL)
 
         self.Watchlist = Watchlist(self.driver)
         self.Portfolio = Portfolio(self.driver)
@@ -151,7 +155,7 @@ class TradeZero(Time):
                 return True
 
         input_symbol = self.driver.find_element(By.ID, "trading-order-input-symbol")
-        input_symbol.send_keys(symbol, Keys.RETURN)
+        input_symbol.send_keys(symbol.lower(), Keys.RETURN)
         time.sleep(0.04)
 
         for i in range(300):
@@ -309,6 +313,7 @@ class TradeZero(Time):
             self.driver.find_element(By.XPATH, f'//*[@id="oitem-l-{symbol.upper()}-cell-8"]/span[2]').click()
 
         return Data(locate_pps, locate_total)
+        # TODO create a function to get the pps and another one that just locates the shares
 
     def credit_locates(self, symbol: str, quantity=None):
         """
