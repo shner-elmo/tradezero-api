@@ -1,6 +1,20 @@
 # tradezero-api
 
 ### Non-official TradeZero API
+
+
+---
+[![PyPi](https://img.shields.io/badge/PyPi-0.3.0-yellow)](https://pypi.org/project/tradezero-api/)
+[![Downloads](https://pepy.tech/badge/tradezero-api)](https://pepy.tech/project/tradezero-api)
+[![Downloads](https://pepy.tech/badge/tradezero-api/month)](https://pepy.tech/project/tradezero-api)
+
+You can get the package directly from [PyPI](https://pypi.org/project/tradezero-api/)
+```
+pip install tradezero-api
+```
+---
+
+
 <br />
 This connection is obtained by logging onto TZ's ZeroFree web platform with Selenium, and therefore the window must always remain open for the driver to interact with the elements.<br />
 The following guide will show you how to get started using the TradeZero API, and how to use some of the most common methods, if you still want to learn more check out the docs, good luck!<br /><br />
