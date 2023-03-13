@@ -14,10 +14,10 @@ from selenium.webdriver.support.ui import Select
 from selenium.common.exceptions import NoSuchElementException, WebDriverException, StaleElementReferenceException
 from termcolor import colored
 
-from .time_helpers import Time, Timer, time_it
+from .utils import time_between, is_market_open, Timer, time_it
 from .watchlist import Watchlist
 from .portfolio import Portfolio
-from .notification import Notification
+from .notification import Notifications
 from .account import Account
 from .enums import Order, TIF
 
@@ -26,16 +26,14 @@ os.system('color')
 TZ_HOME_URL = 'https://standard.tradezeroweb.us/'
 
 
-class TradeZero(Time):
-    def __init__(self, user_name: str, password: str, headless: bool = False,
-                 hide_attributes: bool = False):
+class TradeZero:
+    def __init__(self, user_name: str, password: str, headless: bool = False, hide_attributes: bool = False):
         """
         :param user_name: TradeZero user_name
         :param password: TradeZero password
         :param headless: default: False, True will run the browser in headless mode, which means it won't be visible
         :param hide_attributes: bool, if True: Hide account attributes (acc username, equity, total exposure...)
         """
-        super().__init__()
         self.user_name = user_name
         self.password = password
         self.hide_attributes = hide_attributes
@@ -49,14 +47,14 @@ class TradeZero(Time):
         self.driver = webdriver.Chrome(service=service, options=options)
         self.driver.get(TZ_HOME_URL)
 
-        self.Watchlist = Watchlist(self.driver)
-        self.Portfolio = Portfolio(self.driver)
-        self.Notification = Notification(self.driver)
-        self.Account = Account(self.driver)
+        self.watchlist = Watchlist(driver=self.driver)
+        self.portfolio = Portfolio(driver=self.driver)
+        self.notifications = Notifications(driver=self.driver)
+        self.account = Account(driver=self.driver)
 
         # to instantiate the time, pytz, and datetime modules:
         Timer()
-        self.time_between(time1=(9, 30), time2=(10, 30))
+        time_between(time1=(9, 30), time2=(10, 30))
 
     def _dom_fully_loaded(self, iter_amount: int = 1):
         """
@@ -411,7 +409,7 @@ class TradeZero(Time):
         order_direction = order_direction.value
         time_in_force = time_in_force.value
 
-        if not self.time_between((9, 30), (16, 0)):
+        if not is_market_open():
             raise Exception(f'Error: Market orders are not allowed at this time ({self.time})')
 
         if time_in_force not in ['DAY', 'GTC', 'GTX']:
@@ -458,7 +456,7 @@ class TradeZero(Time):
         order_direction = order_direction.value
         time_in_force = time_in_force.value
 
-        if not self.time_between((9, 30), (16, 0)):
+        if not is_market_open():
             raise Exception(f'Error: Stop Market orders are not allowed at this time ({self.time})')
 
         if time_in_force not in ['DAY', 'GTC', 'GTX']:
@@ -485,3 +483,12 @@ class TradeZero(Time):
         if log_info is True:
             print(f"Time: {self.time}, Order direction: {order_direction}, Symbol: {symbol}, "
                   f"Stop Price: {stop_price}, Shares amount: {share_amount}")
+
+    def __eq__(self, other) -> bool:
+        return isinstance(other, TradeZero) and (self.user_name, self.password) == (other.user_name, other.password)
+
+    def __repr__(self) -> str:
+        return f'TradeZero(user_name={self.user_name!r}, password={"*" * len(self.password)})'
+
+    def __str__(self) -> str:
+        return f'< TradeZero user: {self.user_name!r}, equity: {self.account.equity!r}, cash: {self.account.cash!r} >'

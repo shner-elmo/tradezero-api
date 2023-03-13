@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import warnings
+from typing import TYPE_CHECKING
 
 import pandas as pd
 from selenium.webdriver.common.by import By
@@ -8,12 +8,15 @@ from selenium.webdriver.remote.webdriver import WebDriver
 
 from .enums import PortfolioTab, OrderType
 
+if TYPE_CHECKING:
+    from tradezero import TradeZero  # for the example in the docs
+
 
 class Portfolio:
     def __init__(self, driver: WebDriver):
         self.driver = driver
 
-    def portfolio(self, return_type: str = 'df'):
+    def open_orders(self) -> pd.DataFrame:
         """
         return the Portfolio table as a pandas.DataFrame or nested dict, with the symbol column as index.
         the column names are the following: 'type', 'qty', 'p_close', 'entry',
@@ -21,46 +24,59 @@ class Portfolio:
         note that if the portfolio is empty Pandas won't be able to locate the table,
         and therefore will return None
 
-        :param return_type: 'df' or 'dict'
         :return: pandas.DataFrame or None if table empty
         """
         portfolio_symbols = self.driver.find_elements(By.XPATH, '//*[@id="opTable-1"]/tbody/tr/td[1]')
         if len(portfolio_symbols) == 0:
-            warnings.warn('Portfolio is empty')
-            return None
+            return pd.DataFrame()
 
         df = pd.read_html(self.driver.page_source, attrs={'id': 'opTable-1'})[0]
         df.columns = [
             'symbol', 'type', 'qty', 'p_close', 'entry', 'price', 'change', '%change', 'day_pnl', 'pnl', 'overnight'
         ]
-        df = df.set_index('symbol')
-        if return_type == 'dict':
-            return df.to_dict('index')
+        # TODO clean the DF
+        # df = df.set_index('symbol')
         return df
 
-    def open_orders(self):
-        """
-        return DF with only positions that were opened today (intraday positions)
+    def closed_orders(self) -> pd.DataFrame:
+        raise NotImplementedError
 
-        :return: pandas.DataFrame
+    def active_orders(self) -> pd.DataFrame:
         """
-        df = self.portfolio()
-        filt = df['overnight'] == 'Yes'
-        return df.loc[~filt]
+        Get a dataframe with all the active orders and their info
 
-    def invested(self, symbol):
+        :return: dataframe or dictionary (based on the return_type parameter)
+        """
+        active_orders = self.driver.find_elements(By.XPATH, '//*[@id="aoTable-1"]/tbody/tr[@order-id]')
+        if len(active_orders) == 0:
+            return pd.DataFrame()
+
+        df = pd.read_html(self.driver.page_source, attrs={'id': 'aoTable-1'})[0]
+        df = df.drop(0, axis=1)  # remove the first column which contains the button "CANCEL"
+        df.columns = ['ref_number', 'symbol', 'side', 'qty', 'type', 'status', 'tif', 'limit', 'stop', 'placed']
+        # df = df.set_index('symbol')  # cant set it as a column since its not always unique
+        return df
+
+    def inactive_orders(self) -> pd.DataFrame:
+        raise NotImplementedError
+
+    def invested(self, symbol) -> bool:
         """
         returns True if the given symbol is in portfolio, else: false
+
+        Examples:
+        >>> tz = TradeZero(...)
+        >>> tz.portfolio.invested('AAPL')
+        True
+        >>> tz.portfolio.invested('aapl')
+        True
+        >>> tz.portfolio.invested('NVDA')
+        False
 
         :param symbol: str: e.g: 'aapl', 'amd', 'NVDA', 'GM'
         :return: bool
         """
-        data = self.portfolio('dict')
-        symbols_list = list(data.keys())
-
-        if symbol.upper() in symbols_list:
-            return True
-        return False
+        return symbol.upper() in self.open_orders()['symbol']
 
     def _switch_portfolio_tab(self, tab: PortfolioTab) -> None:
         """
@@ -71,38 +87,8 @@ class Portfolio:
         :param tab: enum of PortfolioTab
         :return: None
         """
-        portfolio_tab = self.driver.find_element(By.ID, tab)
+        portfolio_tab = self.driver.find_element(By.ID, tab)  # TODO: test if .value is needed
         portfolio_tab.click()
-
-    def get_active_orders(self, return_type: str = 'df'):
-        """
-        Get a dataframe with all the active orders and their info
-
-        :param return_type: 'df' or 'dict'
-        :return: dataframe or dictionary (based on the return_type parameter)
-        """
-        active_orders = self.driver.find_elements(By.XPATH, '//*[@id="aoTable-1"]/tbody/tr[@order-id]')
-        if len(active_orders) == 0:
-            warnings.warn('There are no active orders')
-            return None
-
-        df = pd.read_html(self.driver.page_source, attrs={'id': 'aoTable-1'})[0]
-        df = df.drop(0, axis=1)  # remove the first column which contains the button "CANCEL"
-        df.columns = ['ref_number', 'symbol', 'side', 'qty', 'type', 'status', 'tif', 'limit', 'stop', 'placed']
-        # df = df.set_index('symbol')  # cant set it as a column since its not always unique
-
-        if return_type == 'dict':
-            return df.to_dict('index')
-        return df
-
-    def symbol_present_in_active_orders(self, symbol: str) -> bool:
-        """
-        Check if a given symbol is present in the active orders tab
-
-        :param symbol:
-        :return: True or False
-        """
-        return symbol.upper() in self.get_active_orders()['symbol'].values
 
     def cancel_active_order(self, symbol: str, order_type: OrderType) -> None:
         """
@@ -115,7 +101,7 @@ class Portfolio:
         symbol = symbol.upper()
         self._switch_portfolio_tab(tab=PortfolioTab.active_orders)
 
-        df = self.get_active_orders()
+        df = self.active_orders()
         assert symbol in df['symbol'].values, f'Given symbol {symbol} is not present in the active orders tab'
 
         # find the ref-id of all the orders we have to cancel:

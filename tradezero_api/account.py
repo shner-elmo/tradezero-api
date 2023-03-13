@@ -1,64 +1,69 @@
 from __future__ import annotations
 
-import warnings
-from collections import namedtuple
+from typing import TYPE_CHECKING, TypeAlias
 
 from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webdriver import WebDriver
+
+from .exceptions import AccountAttributeHiddenError
+
+if TYPE_CHECKING:
+    AttributeValue: TypeAlias = str | float
 
 
 class Account:
-    def __init__(self, driver):
+    realized_pnl: float
+    unrealized_pnl: float
+    total_pnl: float
+    buying_power: float
+    cash: float
+    exposure: float
+    equity: float
+    equity_ratio: float
+    used_lvg: float
+    allowed_lvg: float
+    account: str  # TODO: test these three IDs
+    account_label: str
+    login_id: str
+    
+    attribute_name_id_mapping = {
+        'realized_pnl': 'h-realized-value',
+        'unrealized_pnl': 'h-unrealizd-pl-value',
+        'total_pnl': 'h-total-pl-value',
+        'buying_power': 'p-bp',
+        'cash': 'h-cash-value',
+        'exposure': 'h-exposure-value',
+        'equity': 'h-equity-value',
+        'equity_ratio': 'h-equity-ratio-value',
+        'used_lvg': 'h-used-lvg-value',
+        'allowed_lvg': 'p-allowed-lev',
+        'account': 'h-select-account',
+        'account_label': 'trading-order-label-account',
+        'login_id': 'h-loginId',
+    }
+    
+    def __init__(self, driver: WebDriver) -> None:
         self.driver = driver
-        self.attribute_ids = [
-            "h-realized-value",
-            "h-unrealizd-pl-value",
-            "h-total-pl-value",
-            "p-bp",
-            "h-cash-value",
-            "h-exposure-value",
-            "h-equity-value",
-            "h-equity-ratio-value",
-            "h-used-lvg-value",
-            "p-allowed-lev",
-            "h-select-account",
-            "h-loginId",
-            "trading-order-label-account",
-        ]
 
-    def hide_attributes(self):
+    def hide_attributes(self) -> None:
         """
         Hides all account attributes i.e, account username, equity-value, cash-value, realized-value...
         """
-        for id_ in self.attribute_ids:
-            element = self.driver.find_element(By.ID, id_)
+        for attr_id in self.attribute_name_id_mapping.values():
+            element = self.driver.find_element(By.ID, attr_id)
             self.driver.execute_script("arguments[0].setAttribute('style', 'display: none;')", element)
+                    
+    def get(self, attr: str) -> AttributeValue | None:
+        try:
+            return self[attr]
+        except KeyError:
+            return None
+    
+    def __getitem__(self, attr_id: str) -> AttributeValue:
+        element = self.driver.find_element(By.ID, attr_id)
+        if element.get_attribute('style') == 'display: none;':
+            raise AccountAttributeHiddenError('cannot fetch attribute that has been hidden')
+        return element.text.translate(str.maketrans('', '', '$%x,'))
 
-    @property
-    def attributes(self):
-        """
-        returns a namedtuple with the account following properties:
-        realized_pnl, unrealized_pnl, total_pnl, buying_power, cash,
-        exposure, equity, equity_ratio, used_lvg, allowed_lvg.
-        note that if one or more of the attributes have been hidden; either by
-        setting self.hide_attributes = True or by calling hide_attributes(),
-        a namedtuple will be returned with None values.
-
-        :return: namedtuple
-        """
-        Data = namedtuple('Data', ['realized_pnl', 'unrealized_pnl', 'total_pnl', 'buying_power', 'cash',
-                                   'exposure', 'equity', 'equity_ratio', 'used_lvg', 'allowed_lvg'])
-
-        attribute_ids = self.attribute_ids[:-3]
-        values = []
-        for id_ in attribute_ids:
-            element = self.driver.find_element(By.ID, id_)
-
-            if element.get_attribute('style') == 'display: none;':
-                warnings.warn('cannot fetch attribute that has been hidden')
-
-                empty_list = [None] * len(attribute_ids)
-                return Data._make(empty_list)
-
-            value = element.text.translate(str.maketrans('', '', '$%x,'))
-            values.append(float(value))
-        return Data._make(values)
+    def __getattr__(self, item) -> AttributeValue:
+        return self[item]

@@ -1,53 +1,58 @@
 from __future__ import annotations
 
+from typing import Iterator, TYPE_CHECKING, TypeAlias
+
 from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webdriver import WebDriver
+from more_itertools import take
 
-from .time_helpers import Time
+from .utils import get_est_time_as_str
+
+if TYPE_CHECKING:
+    from tradezero import TradeZero  # for the example in the docs
+    NotificationResult: TypeAlias = tuple[str, str, str]
 
 
-class Notification(Time):
+class Notifications:
     """A class for retrieving notifications from the web-app"""
-
-    def __init__(self, driver):
+    def __init__(self, driver: WebDriver):
         self.driver = driver
 
-    def get_last_notification_message(self):
+    def last(self) -> NotificationResult:
         """
         return last notification message
 
+        Examples:
+        >>> tz = TradeZero(...)
+        >>> tz.notifications.get_n_notifications(n=3)
+
         :return: str
         """
-        return self.driver.find_element(By.CSS_SELECTOR, 'span.message').text
+        return self.get_n(n=1)[0]
+        # return self.driver.find_element(By.CSS_SELECTOR, 'span.message').text
 
-    def get_notifications(self, notif_amount: int = 1):
+    def get_n(self, n: int | None) -> list[NotificationResult]:
         """
-        return a nested list with each sublist containing [time, title, message],
-        note that u can only view the amount of notifications that are visible in the box/widget
-        without scrolling down (which usually is around 6-9 depending on each message length)
-        example of nested list: (see the docs for a better look):
-        [['11:34:49', 'Order canceled', 'Your Limit Buy order of 1 AMD was canceled.'],
-        ['11:23:34', 'Level 2', 'You are not authorized for symbol: AMD'],
-        ['11:23:34', 'Error', 'You are not authorized for symbol: AMD']].
+        Get a list with N notifications
 
-        :param notif_amount: int amount of notifications to retrieve sorted by most recent
+        The parameter `n` should be a positive integer or None, if its None it will return all the notifications
+        in a list.
+        The output is a list of tuples, with each tuple containing three fields: time, title, and message.
+        Note that u can only view the amount of notifications that are visible in the box/widget
+        without scrolling down (which usually is around 6-9 depending on each message length)
+
+        >>> tz = TradeZero(...)
+        >>> tz.notifications.get_n_notifications(n=3)
+        [('11:34:49', 'Order canceled', 'Your Limit Buy order of 1 AMD was canceled.'),
+        ('11:23:34', 'Level 2', 'You are not authorized for symbol: AMD'),
+        ('11:23:34', 'Error', 'You are not authorized for symbol: AMD')].
+
+        :param n: int or None, amount of notifications to retrieve sorted by most recent
         :return: nested list
         """
-        notif_lst = self.driver.find_elements(By.XPATH,
-                                              '//*[@id="notifications-list-1"]/li')
-        notif_lst_text = [x.text.split('\n') for x in notif_lst[0:notif_amount] if x.text != '']
+        return take(n=n, iterable=self.get_notifications_iter())
 
-        notifications = []
-        for (notification, i) in zip(notif_lst_text, range(notif_amount)):
-            if len(notification) == 2:
-                notification.insert(0, str(self.time))
-
-            elif notification[0] == '' or notification[0] == '-':
-                notification[0] = str(self.time)
-
-            notifications.append(notification)
-        return notifications
-    
-    def notifications_generator(self):
+    def get_notifications_iter(self) -> Iterator[NotificationResult]:
         """
         A notification generator, similarly to get_notifications(), this yields one notification at a time,
         on each next() it will yield a list like so: 
@@ -57,16 +62,22 @@ class Notification(Time):
 
         :return: list
         """
+        # TODO scroll down to load all the notifications if they're not all visible (and try pd.read_html())
+        # or get the amount of nodes from find_elements(By.XPATH, '//*[@id="notifications-list-1"]/li/*')
+        # and do self.driver.find_element(By.XPATH, f'//*[@id="notifications-list-1"]/li/[{i}]') for each item
         notif_lst = self.driver.find_elements(By.XPATH, '//*[@id="notifications-list-1"]/li')
         for item in notif_lst:
             if item.text == '':
                 continue
-                
+
             notification = item.text.split('\n')
             if len(notification) == 2:
-                notification.insert(0, str(self.time))
+                notification.insert(0, get_est_time_as_str())
 
             elif notification[0] == '' or notification[0] == '-':
-                notification[0] = str(self.time)
+                notification[0] = get_est_time_as_str()
 
-            yield notification
+            yield tuple(notification)
+
+    def __iter__(self) -> Iterator[NotificationResult]:
+        yield from self.get_notifications_iter()
