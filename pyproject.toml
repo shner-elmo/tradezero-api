@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tradezero-api"
-version = "0.3.0"
+version = "0.3.1"
 description = "A package for executing orders and retrieving data through the TradeZero web platform"
 authors = ["shner-elmo <770elmo@gmail.com>"]
 license = "MIT"
