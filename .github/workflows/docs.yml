@@ -28,7 +28,7 @@ jobs:
       - run: poetry install
       # ADJUST THIS: build your documentation into docs/.
       # We use a custom build script for pdoc itself, ideally you just run `pdoc -o docs/ ...` here.
-      - run: pdoc tradezero_api/ -o docs/ --logo "https://tradezero.co/_nuxt/tradezero.a7b024f6.svg"
+      - run: poetry run pdoc tradezero_api/ -o docs/ --logo "https://tradezero.co/_nuxt/tradezero.a7b024f6.svg"
 
       - uses: actions/upload-pages-artifact@v1
         with:
