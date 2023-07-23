@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from typing import overload, Optional, Literal
 
 import pandas as pd
 from selenium.webdriver.common.by import By
@@ -13,7 +14,15 @@ class Portfolio:
     def __init__(self, driver: WebDriver):
         self.driver = driver
 
-    def portfolio(self, return_type: str = 'df'):
+    @overload
+    def portfolio(self, return_type: Literal['df'] = 'df') -> Optional[pd.DataFrame]:
+        ...
+
+    @overload
+    def portfolio(self, return_type: Literal['dict']) -> Optional[dict]:
+        ...
+
+    def portfolio(self, return_type: Literal['df', 'dict'] = 'df') -> pd.DataFrame | dict | None:
         """
         return the Portfolio table as a pandas.DataFrame or nested dict, with the symbol column as index.
         the column names are the following: 'type', 'qty', 'p_close', 'entry',
@@ -25,11 +34,12 @@ class Portfolio:
         :return: pandas.DataFrame or None if table empty
         """
         portfolio_symbols = self.driver.find_elements(By.XPATH, '//*[@id="opTable-1"]/tbody/tr/td[1]')
-        if len(portfolio_symbols) == 0:
+        df = pd.read_html(self.driver.page_source, attrs={'id': 'opTable-1'})[0]
+
+        if len(portfolio_symbols) == 0 or df.loc[0, 0].lower() == "you have no open positions.":
             warnings.warn('Portfolio is empty')
             return None
 
-        df = pd.read_html(self.driver.page_source, attrs={'id': 'opTable-1'})[0]
         df.columns = [
             'symbol', 'type', 'qty', 'p_close', 'entry', 'price', 'change', '%change', 'day_pnl', 'pnl', 'overnight'
         ]
@@ -38,17 +48,22 @@ class Portfolio:
             return df.to_dict('index')
         return df
 
-    def open_orders(self):
+    def open_orders(self) -> pd.DataFrame:
         """
         return DF with only positions that were opened today (intraday positions)
 
         :return: pandas.DataFrame
         """
         df = self.portfolio()
+
+        # if there are no open position: return an empty dataframe
+        if df is None:
+            return pd.DataFrame()
+
         filt = df['overnight'] == 'Yes'
         return df.loc[~filt]
 
-    def invested(self, symbol):
+    def invested(self, symbol) -> bool:
         """
         returns True if the given symbol is in portfolio, else: false
 
@@ -56,11 +71,10 @@ class Portfolio:
         :return: bool
         """
         data = self.portfolio('dict')
-        symbols_list = list(data.keys())
+        if data is None:
+            return False
 
-        if symbol.upper() in symbols_list:
-            return True
-        return False
+        return symbol.upper() in data.keys()
 
     def _switch_portfolio_tab(self, tab: PortfolioTab) -> None:
         """
@@ -84,7 +98,7 @@ class Portfolio:
         active_orders = self.driver.find_elements(By.XPATH, '//*[@id="aoTable-1"]/tbody/tr[@order-id]')
         if len(active_orders) == 0:
             warnings.warn('There are no active orders')
-            return None
+            return
 
         df = pd.read_html(self.driver.page_source, attrs={'id': 'aoTable-1'})[0]
         df = df.drop(0, axis=1)  # remove the first column which contains the button "CANCEL"
