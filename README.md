@@ -5,8 +5,8 @@
 
 ---
 [![PyPi](https://img.shields.io/badge/PyPi-0.3.0-yellow)](https://pypi.org/project/tradezero-api/)
-[![Downloads](https://pepy.tech/badge/tradezero-api)](https://pepy.tech/project/tradezero-api)
-[![Downloads](https://pepy.tech/badge/tradezero-api/month)](https://pepy.tech/project/tradezero-api)
+[![Downloads](https://static.pepy.tech/badge/tradezero-api)](https://pepy.tech/project/tradezero-api)
+[![Downloads](https://static.pepy.tech/badge/tradezero-api/month)](https://pepy.tech/project/tradezero-api)
 
 You can get the package directly from [PyPI](https://pypi.org/project/tradezero-api/)
 ```
