@@ -12,6 +12,9 @@ You can get the package directly from [PyPI](https://pypi.org/project/tradezero-
 ```
 pip install tradezero-api
 ```
+
+You can find the full documentation at [shner-elmo.github.io/tradezero-api](https://shner-elmo.github.io/tradezero-api/)
+
 ---
 
 
